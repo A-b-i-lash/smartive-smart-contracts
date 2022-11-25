@@ -3,12 +3,13 @@
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 pragma solidity >=0.8.0;
 
-contract StadiumTicket is ERC1155, Ownable {
+contract StadiumTicket is ERC1155, Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
 
@@ -44,6 +45,7 @@ contract StadiumTicket is ERC1155, Ownable {
     }
 
     function addCategory(uint256 price, uint8 direction, uint256 capacity, string memory name) public onlyOwner {
+        require(!checkEventPassed(), "Event has already occurred.");
         require(direction <= uint8(BlockDirection.WEST), "Direction is out of range.");
         require(price >= 0, "Price should be greater than or equal to 0.");
         require(capacity > 0, "Capacity should be greater than 0.");
@@ -57,6 +59,7 @@ contract StadiumTicket is ERC1155, Ownable {
     }
 
     function buyTicket(uint256 id, uint256 amount) public payable {
+        require(!checkEventPassed(), "Event has already occurred.");
         require(supplies.length > 0, "There is no category to buy ticket");
         require(id <= supplies.length-1 && id >= 0, "Category does not exist.");
         require(categories[id].minted + amount <= supplies[id], "The category has not enough place for the amount you entered.");
@@ -67,6 +70,22 @@ contract StadiumTicket is ERC1155, Ownable {
 
     function compareStrings(string memory a, string memory b) private pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    }
+
+    function checkEventPassed() private returns (bool) {
+        if(block.timestamp >= matchEvent.startDate) {
+            _pause();
+            return true;
+        }
+        return false;
+    }
+
+    function _beforeTokenTransfer(address operator, address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data)        
+        internal
+        whenNotPaused
+        override {
+        require(!checkEventPassed(), "Event has already occurred.");
+        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
     }
 
     function withdraw() public onlyOwner {
