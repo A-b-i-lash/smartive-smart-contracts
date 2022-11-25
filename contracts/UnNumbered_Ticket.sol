@@ -8,44 +8,44 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 pragma solidity >=0.8.0;
 
-contract StadiumTicket is ERC1155, Pausable, Ownable {
+contract UnNumberedTicket is ERC1155, Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
 
-    enum BlockDirection {NORTH, EAST, SOUTH, WEST}
-
-    struct StadiumCategory {
+    struct EventCategory {
         uint256 categoryId;
         uint256 price;
-        BlockDirection direction;
         uint256 capacity;
         string name;
         uint256 minted;
     }
 
-    struct MatchEvent {
-        string homeTeam;
-        string awayTeam;
+    struct EventDetails {
         uint256 startDate;
+        string locationName;
+        string websiteUrl;
+        string eventName;
+        uint256 duration;
     }
 
-    MatchEvent public matchEvent;
-    mapping (uint256 => StadiumCategory) categories;
+    EventDetails public eventDetails;
+    mapping (uint256 => EventCategory) categories;
     uint256[] supplies;
 
-    constructor(string memory homeTeam_, string memory awayTeam_, uint256 startDate_) ERC1155("") {
-        require(!compareStrings(homeTeam_, awayTeam_), "The home and away team can not be the same team.");
-        require(startDate_ > block.timestamp, "You can not set start time of the match to a past date.");
-        matchEvent = MatchEvent({
-            homeTeam: homeTeam_,
-            awayTeam: awayTeam_,
-            startDate: startDate_
-        });
+    constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC1155("") {
+        require(startDate_ > block.timestamp, "You can not set start time of the event to a past date.");
+        require(duration_ > 0, "The duration should be greater than 0.");
+        eventDetails = EventDetails(
+            startDate_,
+            locationName_,
+            websiteUrl_,
+            eventName_,
+            duration_
+        );
     }
 
-    function addCategory(uint256 price, uint8 direction, uint256 capacity, string memory name) public onlyOwner {
+    function addCategory(uint256 price, uint256 capacity, string memory name) public onlyOwner {
         require(!checkEventPassed(), "Event has already occurred.");
-        require(direction <= uint8(BlockDirection.WEST), "Direction is out of range.");
         require(price >= 0, "Price should be greater than or equal to 0.");
         require(capacity > 0, "Capacity should be greater than 0.");
         for(uint256 i=0; i<supplies.length; i++) {
@@ -53,7 +53,7 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
         }
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        categories[tokenId] = StadiumCategory(tokenId, price, BlockDirection(direction), capacity, name, 0);
+        categories[tokenId] = EventCategory(tokenId, price, capacity, name, 0);
         supplies.push(capacity);
     }
 
@@ -72,7 +72,7 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
     }
 
     function checkEventPassed() private returns (bool) {
-        if(block.timestamp >= matchEvent.startDate) {
+        if(block.timestamp >= eventDetails.startDate) {
             _pause();
             return true;
         }
