@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-contract Voting {
+contract WeightedMultipleVoting {
     struct Candidate {
         bytes32 name;
         uint256 voteCount;
