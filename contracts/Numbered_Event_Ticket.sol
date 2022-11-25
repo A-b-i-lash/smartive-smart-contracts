@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 pragma solidity >=0.8.0;
 
-contract NumberedEventTicket is ERC721, Pausable, Ownable {
+contract EventTicket is ERC721, Pausable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
     Counters.Counter private _blockIdCounter;
@@ -41,7 +41,7 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
     mapping (uint256 => SeatBlock) seatBlocks;
     uint256[] supplies;
 
-    constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC721("NumberedEventTicketToken", "EveT") {
+    constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC721("EventTicketToken", "EveT") {
         require(startDate_ > block.timestamp, "You can not set start time of the match to a past date.");
         require(duration_ > 0, "The duration should be greater than 0.");
         eventDetails = EventDetails(
