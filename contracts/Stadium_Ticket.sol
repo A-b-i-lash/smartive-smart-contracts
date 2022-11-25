@@ -56,9 +56,10 @@ contract StadiumTicket is ERC1155, Ownable {
         supplies.push(capacity);
     }
 
-    function mint(uint256 id, uint256 amount) public payable {
+    function buyTicket(uint256 id, uint256 amount) public payable {
+        require(supplies.length > 0, "There is no category to buy ticket");
         require(id <= supplies.length-1 && id >= 0, "Category does not exist.");
-        require(categories[id].minted + amount <= supplies[id], "The category has not enough place for the amount you requested.");
+        require(categories[id].minted + amount <= supplies[id], "The category has not enough place for the amount you entered.");
         require(msg.value >= (categories[id].price * amount), "You don't have enough price.");
         _mint(msg.sender, id, amount, "");
         categories[id].minted += amount;
