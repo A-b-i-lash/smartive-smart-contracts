@@ -9,7 +9,6 @@ pragma solidity >= 0.8.0;
 contract GameObject is ERC1155, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIdCounter;
-    //Counters.Counter private _gameIdCounter;
 
     enum ItemType { CHARACTER, CLOTHING, COLLECTIBLE, SKIN, WEAPON, OTHER }
     enum Rareness { COMMON, RARE, SUPERRARE, LEGENDARY, UNIQUE, OTHER }
@@ -24,10 +23,10 @@ contract GameObject is ERC1155, Ownable {
         uint256 numberOfSales;
     }
 
-    /*struct Game {
+    struct Game {
         uint256 tokenId;
         string gameName;
-    }*/
+    }
 
     struct Order {
         uint256 tokenId;
@@ -37,9 +36,10 @@ contract GameObject is ERC1155, Ownable {
     }
 
     mapping (uint256 => GameItem) public gameItems;
-    //mapping (uint256 => Game) public games;
+    mapping (uint256 => Game) public games;
     mapping (address => Order) private orders;
     uint256[] public supplies;
+    uint256[] public gameList;
     uint256 public lastUpdate;
 
     constructor() ERC1155("") {
@@ -52,8 +52,7 @@ contract GameObject is ERC1155, Ownable {
         require(itemType >= uint8(ItemType.CHARACTER) && itemType <= uint8(ItemType.OTHER), "Type of game item is out of range");
         require(rareness >= uint8(Rareness.COMMON) && rareness <= uint8(Rareness.OTHER), "Rareness of game item is out of range");
         require(price >= 0, "Price must not be a negative number");
-        //uint256 numberOfGames = _gameIdCounter.current() - 1;
-        //require(gameId >= 0 && gameId < numberOfGames, "Game with the given gameId could not be found");
+        require(gameId >= 0 && gameId < gameList.length, "Game with the given gameId could not be found");
         require(!isEmpty(name), "Name of game item must be entered");
         for(uint256 i = 0; i < supplies.length; i++) {
             require(!compareStrings(gameItems[i].name, name), "There is already a game item with the same name.");
@@ -66,16 +65,15 @@ contract GameObject is ERC1155, Ownable {
         _mint(owner(), tokenId, amount, "");
     }
 
-    /*function addNewGame(string memory name) public onlyOwner {
+    function addNewGame(string memory name) public onlyOwner {
         require(!isEmpty(name), "Name of game must be entered");
-        uint256 numberOfGames = _gameIdCounter.current();
-        for(uint256 i = 0; i < numberOfGames - 1; i++) {
+        for(uint256 i = 0; i < gameList.length; i++) {
             require(!compareStrings(games[i].gameName, name), "There is already a game with the same name");
         }
-        _gameIdCounter.increment();
-        games[numberOfGames] = Game(numberOfGames, name);
-        _mint(owner(), numberOfGames, amount, "");
-    }*/
+        uint256 tempGameId = gameList.length;
+        games[tempGameId] = Game(tempGameId, name);
+        gameList.push(tempGameId);
+    }
 
     function getCatalog() public view returns(uint256[] memory availableGameItemList) {
         availableGameItemList = new uint256[](supplies.length);
@@ -100,11 +98,10 @@ contract GameObject is ERC1155, Ownable {
         return gameItems[_gameItemId];
     }
 
-    /*function getGameById(uint256 _gameId) private view returns(Game memory game) {
-        uint256 numberOfGames = _gameIdCounter.current() - 1;
-        require(_gameId >= 0 && _gameId < numberOfGames, "Game with the given gameId could not be found");
+    function getGameById(uint256 _gameId) private view returns(Game memory game) {
+        require(_gameId >= 0 && _gameId < gameList.length, "Game with the given gameId could not be found");
         return games[_gameId];
-    }*/
+    }
 
     function getAddressOrder() private view returns(Order memory order) {
         require(orders[msg.sender].amount > 0, "You don't have any order.");
@@ -119,8 +116,7 @@ contract GameObject is ERC1155, Ownable {
         require(itemType >= uint8(ItemType.CHARACTER) && itemType <= uint8(ItemType.OTHER), "Type of game item is out of range");
         require(rareness >= uint8(Rareness.COMMON) && rareness <= uint8(Rareness.OTHER), "Rareness of game item is out of range");
         require(price >= 0, "Price must not be a negative number");
-        //uint256 numberOfGames = _gameIdCounter.current() - 1;
-       // require(gameId >= 0 && gameId < numberOfGames, "Game with the given gameId could not be found");
+       require(gameId >= 0 && gameId < gameList.length, "Game with the given gameId could not be found");
         require(!isEmpty(name), "Name of game item must be entered");
         for(uint256 i = 0; i < supplies.length; i++) {
             require(!compareStrings(gameItems[i].name, name), "There is already a game item with the same name.");
