@@ -1,122 +1,179 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 
-pragma solidity >=0.7.0 <0.9.0;
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract GameObject {
-    
-    struct Item {
-        uint256 id;
-        string itemName;
-        string gameName;
+pragma solidity >= 0.8.0;
+
+contract GameObject is ERC1155, Ownable {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+    //Counters.Counter private _gameIdCounter;
+
+    enum ItemType { CHARACTER, CLOTHING, COLLECTIBLE, SKIN, WEAPON, OTHER }
+    enum Rareness { COMMON, RARE, SUPERRARE, LEGENDARY, UNIQUE, OTHER }
+
+    struct GameItem {
+        uint256 tokenId;
         uint256 price;
+        uint256 gameId;
+        string name;
         ItemType itemType;
-        ItemStatus itemStatus;
-        address seller;
-        address buyer;
+        Rareness rareness;
+        uint256 numberOfSales;
     }
 
-    enum ItemType {Clothing, Character, Collectible, Skin, Weapon}
-    enum ItemStatus {ForSale, NotForSale}
+    /*struct Game {
+        uint256 tokenId;
+        string gameName;
+    }*/
 
-    address public owner;
-    mapping(address => uint256[]) private userItems; 
-    mapping(uint256 => Item) items;
-    uint256[] itemList;
-
-    constructor() public {
-        owner = msg.sender;
-        itemCounter = 0;
+    struct Order {
+        uint256 tokenId;
+        address orderOwner;
+        uint256 amount;
+        bool received;
     }
 
-    uint256 itemCounter;
-    function getItemId() private returns(uint) { return ++itemCounter; }
+    mapping (uint256 => GameItem) public gameItems;
+    //mapping (uint256 => Game) public games;
+    mapping (address => Order) private orders;
+    uint256[] public supplies;
+    uint256 public lastUpdate;
 
-    function isEmpty(string memory _str) pure private returns(bool _isEmpty) {
-        bytes memory tempStr = bytes(_str);
-        return tempStr.length == 0;
+    constructor() ERC1155("") {
+        lastUpdate = block.timestamp;
     }
 
-    function createItem(string memory _itemName, string memory _gameName, uint256 _price, string memory _itemType) public returns(bool success) {
-        require(!isEmpty(_itemName), "Item name must not be empty");
-        require(!isEmpty(_gameName), "Game name must not be empty");
-        require(_price >= 0, "Price must not be a negative number");
-        require(!isEmpty(_itemType), "Item type must not be empty");
-        require(msg.sender == owner, "Only owner can add new items");
-        uint256 itemId = getItemId();
-        Item memory item = items[itemId];
-        item.id = itemId;
-        item.itemName = _itemName;
-        item.gameName = _gameName;
-        item.price = _price;
-        if(keccak256(bytes(_itemType)) == keccak256(bytes("Clothing"))) {
-            item.itemType = ItemType.Clothing;
-        } else if(keccak256(bytes(_itemType)) == keccak256(bytes("Character"))) {
-            item.itemType = ItemType.Character;
-        } else if(keccak256(bytes(_itemType)) == keccak256(bytes("Collectible"))) {
-            item.itemType = ItemType.Collectible;
-        } else if(keccak256(bytes(_itemType)) == keccak256(bytes("Skin"))) {
-            item.itemType = ItemType.Skin;
-        } else if(keccak256(bytes(_itemType)) == keccak256(bytes("Weapon"))) {
-            item.itemType = GameObject.ItemType.Weapon;
-        }
-        item.itemStatus = GameObject.ItemStatus.ForSale;
-        item.seller = msg.sender;
-        items[itemId] = item;
-        itemList.push(itemId);
-        return true;
-    }
-
-    function getAllItemList() public view returns(uint256[] memory _items) {
-        return itemList;
-    }
-
-    function getItemById(uint256 _id) private view returns(Item memory item) {
-        return items[_id];
-    }
-
-    function getItemStrById(uint256 _id) public view returns(uint256 id, string memory itemName, string memory gameName, uint256 price, string memory itemType, string memory itemStatus, address seller, address buyer) {
-        Item memory item = items[_id];
-        string memory tempItemType;
-        if(item.itemType == ItemType.Clothing) {
-            tempItemType = "Clothing";
-        } else if(item.itemType == ItemType.Character) {
-            tempItemType = "Character";
-        } else if(item.itemType == ItemType.Collectible) {
-            tempItemType = "Collectible";
-        } else if(item.itemType == ItemType.Skin) {
-            tempItemType = "Skin";
-        } else if(item.itemType == ItemType.Weapon) {
-            tempItemType = "Weapon";
+    function addNewGameItem(uint256 price, uint256 gameId, string memory name, uint8 itemType, uint8 rareness,
+        uint256 amount) public onlyOwner {
+        
+        require(itemType >= uint8(ItemType.CHARACTER) && itemType <= uint8(ItemType.OTHER), "Type of game item is out of range");
+        require(rareness >= uint8(Rareness.COMMON) && rareness <= uint8(Rareness.OTHER), "Rareness of game item is out of range");
+        require(price >= 0, "Price must not be a negative number");
+        //uint256 numberOfGames = _gameIdCounter.current() - 1;
+        //require(gameId >= 0 && gameId < numberOfGames, "Game with the given gameId could not be found");
+        require(!isEmpty(name), "Name of game item must be entered");
+        for(uint256 i = 0; i < supplies.length; i++) {
+            require(!compareStrings(gameItems[i].name, name), "There is already a game item with the same name.");
         }
 
-        string memory tempItemStatus;
-        if(item.itemStatus == ItemStatus.ForSale) {
-            tempItemStatus = "For Sale";
-        } else if(item.itemStatus == ItemStatus.NotForSale) {
-            tempItemStatus = "Not For Sale";
-        }
-        return (item.id, item.itemName, item.gameName, item.price, tempItemType, tempItemStatus, item.seller, item.buyer);
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+        gameItems[tokenId] = GameItem(tokenId, price, gameId, name, ItemType(itemType), Rareness(rareness), 0);
+        supplies.push(amount);
+        _mint(owner(), tokenId, amount, "");
     }
 
-    function getMyItem() public view returns(uint256[] memory item) {
-        return userItems[msg.sender];
+    /*function addNewGame(string memory name) public onlyOwner {
+        require(!isEmpty(name), "Name of game must be entered");
+        uint256 numberOfGames = _gameIdCounter.current();
+        for(uint256 i = 0; i < numberOfGames - 1; i++) {
+            require(!compareStrings(games[i].gameName, name), "There is already a game with the same name");
+        }
+        _gameIdCounter.increment();
+        games[numberOfGames] = Game(numberOfGames, name);
+        _mint(owner(), numberOfGames, amount, "");
+    }*/
+
+    function getCatalog() public view returns(uint256[] memory availableGameItemList) {
+        availableGameItemList = new uint256[](supplies.length);
+        for(uint256 i = 0; i < supplies.length; i++) {
+            availableGameItemList[i] = (supplies[i] - gameItems[i].numberOfSales);
+        }
+        return availableGameItemList;
     }
 
-    function buyItem(uint256 _itemId) public payable returns(bool success) {
-        Item memory item = getItemById(_itemId);
-        if(item.itemStatus == ItemStatus.NotForSale) {
-            payable(msg.sender).transfer(msg.value);
-            return false;
+    function getGameItemForSaleAmount(uint256 _gameItemId) public view returns(uint256 forSaleAmount){
+        require(_gameItemId <= supplies.length - 1, "The game item couldn't be found.");
+        return supplies[_gameItemId] - gameItems[_gameItemId].numberOfSales;
+    }
+
+    function getGameItemNumberOfSales(uint256 _gameItemId) public view returns(uint256 numberOfSales) {
+        require(_gameItemId <= supplies.length - 1, "The game item couldn't be found.");
+        return gameItems[_gameItemId].numberOfSales;
+    }
+
+    function getGameItemById(uint256 _gameItemId) private view returns(GameItem memory gameItem) {
+        require(_gameItemId <= supplies.length - 1, "The game item couldn't be found.");
+        return gameItems[_gameItemId];
+    }
+
+    /*function getGameById(uint256 _gameId) private view returns(Game memory game) {
+        uint256 numberOfGames = _gameIdCounter.current() - 1;
+        require(_gameId >= 0 && _gameId < numberOfGames, "Game with the given gameId could not be found");
+        return games[_gameId];
+    }*/
+
+    function getAddressOrder() private view returns(Order memory order) {
+        require(orders[msg.sender].amount > 0, "You don't have any order.");
+        return orders[msg.sender];
+    }
+
+    function updateGameItem(uint256 gameItemId, uint256 price, uint256 gameId, string memory name, uint8 itemType, 
+        uint8 rareness) public onlyOwner {
+        
+        require(supplies.length > 0, "There is no game item to update.");
+        require(gameItemId <= supplies.length-1 && gameItemId >= 0, "Game item does not exist.");
+        require(itemType >= uint8(ItemType.CHARACTER) && itemType <= uint8(ItemType.OTHER), "Type of game item is out of range");
+        require(rareness >= uint8(Rareness.COMMON) && rareness <= uint8(Rareness.OTHER), "Rareness of game item is out of range");
+        require(price >= 0, "Price must not be a negative number");
+        //uint256 numberOfGames = _gameIdCounter.current() - 1;
+       // require(gameId >= 0 && gameId < numberOfGames, "Game with the given gameId could not be found");
+        require(!isEmpty(name), "Name of game item must be entered");
+        for(uint256 i = 0; i < supplies.length; i++) {
+            require(!compareStrings(gameItems[i].name, name), "There is already a game item with the same name.");
         }
-        if(msg.value <= item.price) {
-           payable(msg.sender).transfer(msg.value);
-            return false;
-        }
-        item.buyer = msg.sender;
-        item.itemStatus = ItemStatus.NotForSale;
-        items[_itemId] = item;
-        userItems[msg.sender].push(item.id);
-        return true;
+
+        gameItems[gameItemId].price = price;
+        gameItems[gameItemId].gameId = gameId;
+        gameItems[gameItemId].name = name;
+        gameItems[gameItemId].itemType = ItemType(itemType);
+        gameItems[gameItemId].rareness = Rareness(rareness);
+    }
+
+    function produceGameItem(uint256 gameItemId, uint256 amount) public onlyOwner {
+        require(supplies.length > 0, "There is no game item to produce.");
+        require(gameItemId <= supplies.length-1 && gameItemId >= 0, "Game item does not exist.");
+        supplies[gameItemId] = supplies[gameItemId] + amount;
+        _mint(owner(), gameItemId, amount, "");
+    }
+
+    function buyGameItem(uint256 gameItemId, uint256 amount) public payable {
+        require(supplies.length > 0, "There is no game item to buy.");
+        require(gameItemId <= supplies.length-1 && gameItemId >= 0, "Game item does not exist.");
+        require(amount > 0, "The amount should be greater than 0.");
+        require(supplies[gameItemId] - gameItems[gameItemId].numberOfSales >= amount, "There is no enough produced game items.");
+        require(msg.value >= (gameItems[gameItemId].price * amount), "You don't have enough balance.");
+        require(orders[msg.sender].amount == 0, "You already have an order to wait for receiving, first get it.");
+        _safeTransferFrom(owner(), msg.sender, gameItemId, amount, "");
+        gameItems[gameItemId].numberOfSales += amount;
+        orders[msg.sender] = Order(gameItemId, msg.sender, amount, false);
+    }
+
+    function receiveGameItem(uint256 gameItemId, uint256 amount) public {
+        require(supplies.length > 0, "There is no game item to receive.");
+        require(gameItemId <= supplies.length-1 && gameItemId >= 0, "Game item does not exist.");
+        require(amount > 0, "The amount should be greater than 0.");
+        require(balanceOf(msg.sender, gameItemId) >= amount, "You didn't have a game item with the amount you gave.");
+        require(orders[msg.sender].amount > 0, "You don't have any order to receive.");
+        orders[msg.sender].received = true;
+        _burn(msg.sender, gameItemId, amount);
+    }
+
+    function isEmpty(string memory str) private pure returns (bool) {
+        return (bytes(str).length == 0);
+    }
+
+    function compareStrings(string memory a, string memory b) private pure returns (bool) {
+        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    }
+
+    function withdraw() public onlyOwner {
+        require(address(this).balance > 0, "Balance is 0.");
+        (bool success, ) = payable(owner()).call{value: address(this).balance}("");
+        require(success, "Withdraw couldn't be completed.");
     }
 
 }
