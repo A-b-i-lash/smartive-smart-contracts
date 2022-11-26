@@ -56,6 +56,29 @@ contract CafeMenu is ERC1155, Ownable {
         _mint(owner(), tokenId, initialAmount, "");
     }
 
+    function getMenu() public view returns(uint256[] memory availableItemList) {
+        availableItemList = new uint256[](supplies.length);
+        for(uint256 i=0; i<supplies.length; i++) {
+            availableItemList[i] = (supplies[i] - menuItems[i].soldNumber);
+        }
+        return availableItemList;
+    }
+
+    function getItemAvailability(uint256 _id) public view returns(uint256 availableNumber) {
+        require(_id <= supplies.length - 1, "The item couldn't find.");
+        return supplies[_id] - menuItems[_id].soldNumber;
+    }
+
+    function getItemSoldNumber(uint256 _id) public view returns(uint256 soldNumber) {
+        require(_id <= supplies.length - 1, "The item couldn't find.");
+        return menuItems[_id].soldNumber;
+    }
+
+    function getItemById(uint256 _id) private view returns(MenuItem memory item) {
+        require(_id <= supplies.length - 1, "The item couldn't find.");
+        return menuItems[_id];
+    }
+
     function updateItemData(uint256 itemId, uint256 price, string memory name, uint8 itemType, uint256 calories, uint256 preparationTime, string[] memory ingredients) public onlyOwner {
         require(itemType <= uint8(MenuItemType.FRUIT), "Menu item type is out of range.");
         require(price >= 0, "Price should be greater than or equal to 0.");
