@@ -30,9 +30,9 @@ contract CafeMenu is ERC1155, Ownable {
         bool received;
     }
 
-    mapping (uint256 => MenuItem) menuItems;
-    mapping (address => Order) orders;
-    uint256[] supplies;
+    mapping (uint256 => MenuItem) public menuItems;
+    mapping (address => Order) private orders;
+    uint256[] public supplies;
     uint256 public lastUpdate;
 
     constructor() ERC1155("") {
@@ -77,6 +77,11 @@ contract CafeMenu is ERC1155, Ownable {
     function getItemById(uint256 _id) private view returns(MenuItem memory item) {
         require(_id <= supplies.length - 1, "The item couldn't find.");
         return menuItems[_id];
+    }
+
+    function getAddressOrder() private view returns(Order memory order) {
+        require(orders[msg.sender].amount > 0, "You don't have any order.");
+        return orders[msg.sender];
     }
 
     function updateItemData(uint256 itemId, uint256 price, string memory name, uint8 itemType, uint256 calories, uint256 preparationTime, string[] memory ingredients) public onlyOwner {

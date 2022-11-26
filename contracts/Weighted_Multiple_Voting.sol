@@ -20,12 +20,12 @@ contract WeightedMultipleVoting is ERC20, Pausable, Ownable {
         address delegate;
     }
 
-    Candidate[] private candidates;
+    Candidate[] public candidates;
     mapping(address => Voter) public voters;
-    uint256 private maxAllowedVotes;
-    uint256 constant votePrice = 0.001 ether;
-    uint256 private startTime;
-    uint256 private endTime;
+    uint256 public maxAllowedVotes;
+    uint256 constant public votePrice = 0.001 ether;
+    uint256 public startTime;
+    uint256 public endTime;
 
     constructor(string[] memory candidateNames, uint256 maxVotes, uint256 ownerWeight, uint256 startTime_, uint256 endTime_)
     ERC20("WeightedToken", "WeTo")    
@@ -162,6 +162,7 @@ contract WeightedMultipleVoting is ERC20, Pausable, Ownable {
     }
 
     function withdraw() public onlyOwner {
+        require(address(this).balance > 0, "Balance is 0.");
         (bool success, ) = payable(owner()).call{value: address(this).balance}("");
         require(success, "Withdraw couldn't be completed");
     }

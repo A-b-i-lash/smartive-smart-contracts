@@ -29,8 +29,8 @@ contract UnNumberedTicket is ERC1155, Pausable, Ownable {
     }
 
     EventDetails public eventDetails;
-    mapping (uint256 => EventCategory) categories;
-    uint256[] supplies;
+    mapping (uint256 => EventCategory) public categories;
+    uint256[] public supplies;
 
     constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC1155("") {
         require(startDate_ > block.timestamp, "You can not set start time of the event to a past date.");

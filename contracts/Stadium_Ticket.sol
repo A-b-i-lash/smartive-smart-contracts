@@ -29,8 +29,8 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
     }
 
     MatchEvent public matchEvent;
-    mapping (uint256 => StadiumCategory) categories;
-    uint256[] supplies;
+    mapping (uint256 => StadiumCategory) public categories;
+    uint256[] public supplies;
 
     constructor(string memory homeTeam_, string memory awayTeam_, uint256 startDate_) ERC1155("") {
         require(!compareStrings(homeTeam_, awayTeam_), "The home and away team can not be the same team.");
