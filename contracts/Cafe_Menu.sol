@@ -23,7 +23,15 @@ contract CafeMenu is ERC1155, Ownable {
         uint256 soldNumber;
     }
 
+    struct Order {
+        uint256 tokenId;
+        address orderOwner;
+        uint256 amount;
+        bool received;
+    }
+
     mapping (uint256 => MenuItem) menuItems;
+    mapping (address => Order) orders;
     uint256[] supplies;
     uint256 public lastUpdate;
 
@@ -45,6 +53,7 @@ contract CafeMenu is ERC1155, Ownable {
         _tokenIdCounter.increment();
         menuItems[tokenId] = MenuItem(tokenId, price, name, MenuItemType(itemType), calories, preparationTime, ingredients, 0);
         supplies.push(initialAmount);
+        _mint(owner(), tokenId, initialAmount, "");
     }
 
     function updateItemData(uint256 itemId, uint256 price, string memory name, uint8 itemType, uint256 calories, uint256 preparationTime, string[] memory ingredients) public onlyOwner {
@@ -70,15 +79,29 @@ contract CafeMenu is ERC1155, Ownable {
         require(supplies.length > 0, "There is no item to produce.");
         require(id <= supplies.length-1 && id >= 0, "Menu item does not exist.");
         supplies[id] = supplies[id] + amount;
+        _mint(owner(), id, amount, "");
     }
 
     function buyItem(uint256 id, uint256 amount) public payable {
         require(supplies.length > 0, "There is no item to buy.");
         require(id <= supplies.length-1 && id >= 0, "Menu item does not exist.");
+        require(amount > 0, "The amount should be greater than 0.");
         require(supplies[id] - menuItems[id].soldNumber >= amount, "There is no enough produced item.");
         require(msg.value >= (menuItems[id].price * amount), "You don't have enough price.");
-        _mint(msg.sender, id, amount, "");
+        require(orders[msg.sender].amount == 0, "You already have an order to wait for receiving, first get it.");
+        _safeTransferFrom(owner(), msg.sender, id, amount, "");
         menuItems[id].soldNumber += amount;
+        orders[msg.sender] = Order(id, msg.sender, amount, false);
+    }
+
+    function receiveItem(uint256 id, uint256 amount) public {
+        require(supplies.length > 0, "There is no item to receive.");
+        require(id <= supplies.length-1 && id >= 0, "Menu item does not exist.");
+        require(amount > 0, "The amount should be greater than 0.");
+        require(balanceOf(msg.sender, id) >= amount, "You didn't have item with the amount you gave.");
+        require(orders[msg.sender].amount > 0, "You don't have any order to receive.");
+        orders[msg.sender].received = true;
+        _burn(msg.sender, id, amount);
     }
 
     function compareStrings(string memory a, string memory b) private pure returns (bool) {
