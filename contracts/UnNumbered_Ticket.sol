@@ -29,8 +29,9 @@ contract UnNumberedTicket is ERC1155, Pausable, Ownable {
     }
 
     EventDetails public eventDetails;
-    mapping (uint256 => EventCategory) public categories;
+    mapping (uint256 => EventCategory) categories;
     uint256[] public supplies;
+    uint256[] categoryList;
 
     constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC1155("") {
         require(startDate_ > block.timestamp, "You can not set start time of the event to a past date.");
@@ -44,6 +45,14 @@ contract UnNumberedTicket is ERC1155, Pausable, Ownable {
         );
     }
 
+    function getAllCategories() public view returns(uint256[] memory items) {
+        return categoryList;
+    }
+
+    function getCategoryById(uint256 cateId) private view returns(EventCategory memory item) {
+        return categories[cateId];
+    }
+
     function addCategory(uint256 price, uint256 capacity, string memory name) public onlyOwner {
         require(!checkEventPassed(), "Event has already occurred.");
         require(price >= 0, "Price should be greater than or equal to 0.");
@@ -55,6 +64,8 @@ contract UnNumberedTicket is ERC1155, Pausable, Ownable {
         _tokenIdCounter.increment();
         categories[tokenId] = EventCategory(tokenId, price, capacity, name, 0);
         supplies.push(capacity);
+        _mint(msg.sender, tokenId, capacity, "");
+        categoryList.push(tokenId);
     }
 
     function buyTicket(uint256 id, uint256 amount) public payable {
@@ -63,7 +74,7 @@ contract UnNumberedTicket is ERC1155, Pausable, Ownable {
         require(id <= supplies.length-1 && id >= 0, "Category does not exist.");
         require(categories[id].minted + amount <= supplies[id], "The category has not enough place for the amount you entered.");
         require(msg.value >= (categories[id].price * amount), "You don't have enough price.");
-        _mint(msg.sender, id, amount, "");
+        _safeTransferFrom(owner(), msg.sender, id, amount, "");
         categories[id].minted += amount;
     }
 
