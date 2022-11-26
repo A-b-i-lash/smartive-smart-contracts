@@ -19,7 +19,7 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
         BlockDirection direction;
         uint256 capacity;
         string name;
-        uint256 minted;
+        uint256 transferred;
     }
 
     struct MatchEvent {
@@ -29,8 +29,9 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
     }
 
     MatchEvent public matchEvent;
-    mapping (uint256 => StadiumCategory) public categories;
+    mapping (uint256 => StadiumCategory) private categories;
     uint256[] public supplies;
+    uint256[] public categoryList;
 
     constructor(string memory homeTeam_, string memory awayTeam_, uint256 startDate_) ERC1155("") {
         require(!compareStrings(homeTeam_, awayTeam_), "The home and away team can not be the same team.");
@@ -40,6 +41,14 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
             awayTeam: awayTeam_,
             startDate: startDate_
         });
+    }
+
+    function getAllCategories() public view returns(uint256[] memory items) {
+        return categoryList;
+    }
+
+    function getCategoryById(uint256 cateId) private view returns(StadiumCategory memory item) {
+        return categories[cateId];
     }
 
     function addCategory(uint256 price, uint8 direction, uint256 capacity, string memory name) public onlyOwner {
@@ -54,16 +63,18 @@ contract StadiumTicket is ERC1155, Pausable, Ownable {
         _tokenIdCounter.increment();
         categories[tokenId] = StadiumCategory(tokenId, price, BlockDirection(direction), capacity, name, 0);
         supplies.push(capacity);
+        _mint(msg.sender, tokenId, capacity, "");
+        categoryList.push(tokenId);
     }
 
     function buyTicket(uint256 id, uint256 amount) public payable {
         require(!checkEventPassed(), "Event has already occurred.");
         require(supplies.length > 0, "There is no category to buy ticket");
         require(id <= supplies.length-1 && id >= 0, "Category does not exist.");
-        require(categories[id].minted + amount <= supplies[id], "The category has not enough place for the amount you entered.");
+        require(categories[id].transferred + amount <= supplies[id], "The category has not enough place for the amount you entered.");
         require(msg.value >= (categories[id].price * amount), "You don't have enough price.");
-        _mint(msg.sender, id, amount, "");
-        categories[id].minted += amount;
+        _safeTransferFrom(owner(), msg.sender, id, amount, "");
+        categories[id].transferred += amount;
     }
 
     function compareStrings(string memory a, string memory b) private pure returns (bool) {
