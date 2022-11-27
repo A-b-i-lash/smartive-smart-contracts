@@ -27,6 +27,7 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
         uint256 totalRowNumber;
         uint256 createdRowNumber;
         uint256 capacity;
+        uint256[] rowIds;
         mapping(uint256 => SeatRow) seatRows;
     }
 
@@ -40,7 +41,8 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
 
     EventDetails public eventDetails;
     mapping (uint256 => SeatBlock) public seatBlocks;
-    uint256[] public supplies;
+    uint256[] supplies;
+    uint256[] seatBlockList;
 
     constructor(uint256 startDate_, string memory locationName_, string memory websiteUrl_, string memory eventName_, uint256 duration_) ERC721("EventTicketToken", "EveT") {
         require(startDate_ > block.timestamp, "You can not set start time of the match to a past date.");
@@ -52,6 +54,27 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
             eventName_,
             duration_
         );
+    }
+
+    function getAllBlocks() public view returns(uint256[] memory items) {
+        return seatBlockList;
+    }
+
+    function getRowsInBlock(uint256 blockId) public view returns(uint256[] memory items) {
+        require(supplies.length > 0, "There is no block to buy ticket");
+        require(seatBlocks[blockId].totalRowNumber > 0, "There is no block with the given block id.");
+        return seatBlocks[blockId].rowIds;
+    }
+
+    function getCellsinRow(uint256 blockId, uint256 rowId) public view returns(uint256[] memory items) {
+        require(supplies.length > 0, "There is no block to buy ticket");
+        require(seatBlocks[blockId].totalRowNumber > 0, "There is no block with the given block id.");
+        require(seatBlocks[blockId].seatRows[rowId].totalCapacity > 0, "There is no row with the given row id.");
+        uint256[] memory cellItems = new uint256[](seatBlocks[blockId].seatRows[rowId].totalCapacity);
+        for(uint256 i=0; i<seatBlocks[blockId].seatRows[rowId].totalCapacity; i++) {
+            cellItems[i] = seatBlocks[blockId].seatRows[rowId].firstCellId+i;
+        }
+        return cellItems;
     }
 
     function addBlock(uint256 price, string memory name, uint256 totalRowNumber_) public onlyOwner {
@@ -70,6 +93,7 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
         newSeatBlock.totalRowNumber = totalRowNumber_;
         seatBlocks[blockId].capacity = 0;
         supplies.push(0);
+        seatBlockList.push(blockId);
     }
 
     function addBlockRow(uint256 blockId, uint256 capacity_) public onlyOwner {
@@ -89,6 +113,7 @@ contract NumberedEventTicket is ERC721, Pausable, Ownable {
             }
             seatBlocks[blockId].seatRows[rowId].cells[tokenId] = false;
         }
+        seatBlocks[blockId].rowIds.push(rowId);
         seatBlocks[blockId].capacity += capacity_;
         seatBlocks[blockId].createdRowNumber++;
         supplies[blockId] += capacity_;

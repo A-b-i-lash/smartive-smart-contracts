@@ -101,6 +101,7 @@ contract CafeMenu is ERC1155, Ownable {
         menuItems[itemId].calories = calories;
         menuItems[itemId].preparationTime = preparationTime;
         menuItems[itemId].ingredients = ingredients;
+        lastUpdate = block.timestamp;
     }
 
     function produceItem(uint256 id, uint256 amount) public onlyOwner {
@@ -108,6 +109,7 @@ contract CafeMenu is ERC1155, Ownable {
         require(id <= supplies.length-1 && id >= 0, "Menu item does not exist.");
         supplies[id] = supplies[id] + amount;
         _mint(owner(), id, amount, "");
+        lastUpdate = block.timestamp;
     }
 
     function buyItem(uint256 id, uint256 amount) public payable {
@@ -120,6 +122,7 @@ contract CafeMenu is ERC1155, Ownable {
         _safeTransferFrom(owner(), msg.sender, id, amount, "");
         menuItems[id].soldNumber += amount;
         orders[msg.sender] = Order(id, msg.sender, amount, false);
+        lastUpdate = block.timestamp;
     }
 
     function receiveItem(uint256 id, uint256 amount) public {
@@ -130,6 +133,7 @@ contract CafeMenu is ERC1155, Ownable {
         require(orders[msg.sender].amount > 0, "You don't have any order to receive.");
         orders[msg.sender].received = true;
         _burn(msg.sender, id, amount);
+        lastUpdate = block.timestamp;
     }
 
     function compareStrings(string memory a, string memory b) private pure returns (bool) {
