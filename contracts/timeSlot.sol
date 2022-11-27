@@ -61,10 +61,11 @@ contract timeSlotSystem  is ERC721, Pausable, Ownable {
     }
 
     function ownTimeSlot(uint256 _timeSlotId) public payable {
-         require(!checkEventPassed(_timeSlotId), "Event has already occurred.");
+        uint256 slotStartTime =  EventDetails.eventStartTime +  ( (_timeSlotId  ) * EventDetails.interval);
+        require(block.timestamp < slotStartTime, "Time slot is past. You can own another time slot.");
+         require(!checkEventPassed(), "Event has already occurred.");
          require(msg.value >= timeSlots[_timeSlotId].price, "You should send price of time slot.");
          require(_timeSlotId <= _tokenIdCounter.current(),"You can not set invalid time slot number");
-         super.transfer()
          _safeMint(msg.sender, _timeSlotId);
         _timeSlotIdCounter.increment();
         _tokenIdCounter.increment();
@@ -72,8 +73,8 @@ contract timeSlotSystem  is ERC721, Pausable, Ownable {
     }
 
 
-    function checkEventPassed(uint256 timeSlotId) private returns (bool) {
-        if(block.timestamp >= (EventDetails.eventStartTime + (EventDetails.interval * timeSlotId ))) {
+   function checkEventPassed() private returns (bool) {
+        if(block.timestamp >= EventDetails.eventStartTime) {
             _pause();
             return true;
         }
